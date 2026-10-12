@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use std::time::Instant;
 
 const USAGE: &str = "usage:
+  wsearch                        OneCommander-style browser (Mica, dual-pane)
   wsearch <query...> [--json]    search (starts the daemon if needed)
   wsearch stdio                  JSON lines on stdin/stdout
   wsearch serve [--root DIR]     run the daemon in the foreground
@@ -13,6 +14,8 @@ const USAGE: &str = "usage:
   wsearch uninstall              remove the logon entry (keeps the index)
   wsearch bench <query...>       time a query in-process against the saved index
   wsearch index [--root DIR]     build the name index in-process and exit
+  wsearch gui                    same as launching with no args
+  wsearch win32                  classic Win32 listview UI
 
 Queries: fuzzy words, 'exact, ^prefix, suffix$, !exclude
 Filters: ext: type: kind: in: drive: size: mtime: re: path: limit: grep: regex: sym:";
@@ -34,7 +37,9 @@ fn parse_root(args: &[String]) -> Option<PathBuf> {
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     match args.first().map(String::as_str) {
-        None | Some("-h" | "--help") => eprintln!("{USAGE}"),
+        Some("-h" | "--help") => eprintln!("{USAGE}"),
+        None | Some("gui") => wsearch::ui::run(),
+        Some("win32") => wsearch::ui::run_win32(),
         Some("serve") => wsearch::serve(data_dir(), home(), parse_root(&args)),
         Some("stdio") => stdio(),
         Some("status") => print_one(&serde_json::json!({"op": "status"}), true),
@@ -132,6 +137,9 @@ fn install(startup: bool) {
     let dest = data_dir().join("wsearch.exe");
     let _ = std::fs::remove_file(&dest);
     std::fs::copy(std::env::current_exe().unwrap(), &dest).unwrap_or_else(|e| die(&format!("copy: {e}")));
+    if let Some(dir) = dest.parent() {
+        wsearch::ui::copy_ui_next_to(dir);
+    }
     if !startup {
         println!("installed {}; daemon starts on first search", dest.display());
         return;

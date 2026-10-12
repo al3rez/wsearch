@@ -1,0 +1,194 @@
+<Window x:Class="WSearch.Ui.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="WSearch"
+        Icon="pack://application:,,,/Assets/wsearch.ico"
+        Height="720" Width="1280" MinHeight="470" MinWidth="900"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource Content}"
+        FontFamily="Segoe UI Variable, Segoe UI"
+        Foreground="{DynamicResource Fg}"
+        Loaded="OnLoaded" StateChanged="OnStateChanged" PreviewKeyDown="OnPreviewKeyDown">
+  <WindowChrome.WindowChrome>
+    <WindowChrome CaptionHeight="40" GlassFrameThickness="0" ResizeBorderThickness="6" UseAeroCaptionButtons="False"/>
+  </WindowChrome.WindowChrome>
+  <Grid>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="220" MinWidth="180"/>
+      <ColumnDefinition Width="*"/>
+    </Grid.ColumnDefinitions>
+
+    <!-- Full-height nav rail: opaque gray, hairline, same as OneCommander -->
+    <Border Grid.Column="0" Background="{DynamicResource Sidebar}"
+            BorderBrush="{DynamicResource Line}" BorderThickness="0,0,1,0">
+      <DockPanel>
+        <TextBlock DockPanel.Dock="Top" Text="Places" FontSize="11" Foreground="{DynamicResource FgMuted}" Margin="16,12,16,4"/>
+        <ListBox x:Name="Sidebar" BorderThickness="0" Background="Transparent" SelectionChanged="SidebarChanged"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled" Margin="8,0,8,8">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <StackPanel Orientation="Horizontal" Margin="2,0">
+                <Image Source="{Binding Icon}" Width="16" Height="16" Margin="0,0,8,0"
+                       RenderOptions.BitmapScalingMode="NearestNeighbor" SnapsToDevicePixels="True"/>
+                <TextBlock Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                           Foreground="{DynamicResource Fg}"/>
+              </StackPanel>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </DockPanel>
+    </Border>
+
+    <Grid Grid.Column="1" Background="{DynamicResource Content}">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="40"/>
+        <RowDefinition Height="*"/>
+        <RowDefinition Height="28"/>
+      </Grid.RowDefinitions>
+
+      <Grid Grid.Row="0" Margin="8,4,140,4">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto"/>
+          <ColumnDefinition Width="Auto"/>
+          <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <Button Style="{StaticResource Glyph}" Content="&#xE72B;" Click="BackClick" WindowChrome.IsHitTestVisibleInChrome="True"/>
+        <Button Grid.Column="1" Style="{StaticResource Glyph}" Content="&#xE72A;" Click="FwdClick" WindowChrome.IsHitTestVisibleInChrome="True"/>
+        <Border Grid.Column="2" CornerRadius="4" Background="{DynamicResource Pane}" BorderBrush="{DynamicResource Line}"
+                BorderThickness="1" Margin="8,2,0,2" WindowChrome.IsHitTestVisibleInChrome="True">
+          <Grid>
+            <TextBlock x:Name="SearchHint" Text="Search files…" Foreground="{DynamicResource FgMuted}" Margin="10,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False"/>
+            <TextBox x:Name="SearchBox" Background="Transparent" BorderThickness="0" Foreground="{DynamicResource Fg}"
+                     CaretBrush="{DynamicResource Fg}" FontSize="13" Padding="10,4" VerticalContentAlignment="Center"
+                     TextChanged="SearchChanged"/>
+          </Grid>
+        </Border>
+      </Grid>
+
+      <Grid Grid.Row="1">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" MinWidth="280"/>
+          <ColumnDefinition Width="Auto"/>
+          <ColumnDefinition Width="*" MinWidth="200"/>
+          <ColumnDefinition Width="Auto"/>
+          <ColumnDefinition Width="260" MinWidth="160"/>
+        </Grid.ColumnDefinitions>
+
+        <DockPanel Grid.Column="0" Margin="8,0,0,0">
+          <Grid DockPanel.Dock="Top" Margin="0,0,8,6">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto"/>
+              <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Button Style="{StaticResource Glyph}" Content="&#xE74A;" Click="UpAClick"/>
+            <TextBlock Grid.Column="1" x:Name="PathA" Text="" VerticalAlignment="Center" Margin="8,0"
+                       Foreground="{DynamicResource FgMuted}" FontSize="12" TextTrimming="CharacterEllipsis"/>
+          </Grid>
+          <ListView x:Name="ListA" BorderThickness="0" Background="Transparent"
+                    SelectionMode="Extended" MouseDoubleClick="ListADouble"
+                    SelectionChanged="ListASelect"
+                    PreviewMouseRightButtonUp="ListARight"
+                    GridViewColumnHeader.Click="SortAClick"
+                    VirtualizingPanel.IsVirtualizing="True"
+                    VirtualizingPanel.VirtualizationMode="Recycling"
+                    VirtualizingPanel.ScrollUnit="Pixel">
+            <ListView.View>
+              <GridView>
+                <GridViewColumn Header="Name" Width="220">
+                  <GridViewColumn.CellTemplate>
+                    <DataTemplate>
+                      <StackPanel Orientation="Horizontal">
+                        <Image Source="{Binding Icon}" Width="16" Height="16" Margin="0,0,8,0"/>
+                        <TextBlock Text="{Binding Name}" Foreground="{DynamicResource Fg}"/>
+                      </StackPanel>
+                    </DataTemplate>
+                  </GridViewColumn.CellTemplate>
+                </GridViewColumn>
+                <GridViewColumn Header="Date" Width="120" DisplayMemberBinding="{Binding DateText}"/>
+                <GridViewColumn Header="Size" Width="72" DisplayMemberBinding="{Binding SizeText}"/>
+                <GridViewColumn Header="Type" Width="80" DisplayMemberBinding="{Binding Kind}"/>
+                <GridViewColumn Header="Location" Width="180" DisplayMemberBinding="{Binding Location}"/>
+              </GridView>
+            </ListView.View>
+          </ListView>
+        </DockPanel>
+        <GridSplitter Grid.Column="1" Width="6" Background="Transparent"/>
+
+        <DockPanel Grid.Column="2">
+          <Grid DockPanel.Dock="Top" Margin="0,0,8,6">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto"/>
+              <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Button Style="{StaticResource Glyph}" Content="&#xE74A;" Click="UpBClick"/>
+            <TextBlock Grid.Column="1" x:Name="PathB" Text="" VerticalAlignment="Center" Margin="8,0"
+                       Foreground="{DynamicResource FgMuted}" FontSize="12" TextTrimming="CharacterEllipsis"/>
+          </Grid>
+          <ListView x:Name="ListB" BorderThickness="0" Background="Transparent"
+                    SelectionMode="Extended" MouseDoubleClick="ListBDouble"
+                    SelectionChanged="ListBSelect"
+                    PreviewMouseRightButtonUp="ListBRight"
+                    GridViewColumnHeader.Click="SortBClick"
+                    VirtualizingPanel.IsVirtualizing="True"
+                    VirtualizingPanel.VirtualizationMode="Recycling"
+                    VirtualizingPanel.ScrollUnit="Pixel">
+            <ListView.View>
+              <GridView>
+                <GridViewColumn Header="Name" Width="220">
+                  <GridViewColumn.CellTemplate>
+                    <DataTemplate>
+                      <StackPanel Orientation="Horizontal">
+                        <Image Source="{Binding Icon}" Width="16" Height="16" Margin="0,0,8,0"/>
+                        <TextBlock Text="{Binding Name}" Foreground="{DynamicResource Fg}"/>
+                      </StackPanel>
+                    </DataTemplate>
+                  </GridViewColumn.CellTemplate>
+                </GridViewColumn>
+                <GridViewColumn Header="Size" Width="80" DisplayMemberBinding="{Binding SizeText}"/>
+                <GridViewColumn Header="Type" Width="100" DisplayMemberBinding="{Binding Kind}"/>
+              </GridView>
+            </ListView.View>
+          </ListView>
+        </DockPanel>
+        <GridSplitter Grid.Column="3" Width="6" Background="Transparent"/>
+
+        <Border Grid.Column="4" Background="{DynamicResource Content}"
+                BorderBrush="{DynamicResource Line}" BorderThickness="1,0,0,0">
+          <DockPanel>
+            <TextBlock DockPanel.Dock="Top" Text="Preview" FontSize="11" Foreground="{DynamicResource FgMuted}" Margin="14,12,14,6"/>
+            <TextBlock x:Name="PreviewMeta" DockPanel.Dock="Top" TextWrapping="Wrap" Margin="14,0,14,8" Foreground="{DynamicResource FgMuted}" FontSize="12"/>
+            <Image x:Name="PreviewImage" DockPanel.Dock="Top" Stretch="Uniform" Margin="12,0,12,8" MaxHeight="220" Visibility="Collapsed"/>
+            <ListBox x:Name="PreviewList" DockPanel.Dock="Top" BorderThickness="0" Background="Transparent" Visibility="Collapsed"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled" MaxHeight="280">
+              <ListBox.ItemTemplate>
+                <DataTemplate>
+                  <StackPanel Orientation="Horizontal">
+                    <Image Source="{Binding Icon}" Width="16" Height="16" Margin="0,0,8,0"/>
+                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" MaxWidth="140"/>
+                    <TextBlock Text="{Binding Detail}" Foreground="{DynamicResource FgMuted}" Margin="8,0,0,0"/>
+                  </StackPanel>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+            <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="14,0,8,8">
+              <TextBlock x:Name="PreviewText" FontFamily="Cascadia Mono, Consolas" FontSize="11"
+                         TextWrapping="Wrap" Foreground="{DynamicResource Fg}" Visibility="Collapsed"/>
+            </ScrollViewer>
+          </DockPanel>
+        </Border>
+      </Grid>
+
+      <Border Grid.Row="2" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Background="{DynamicResource Content}">
+        <TextBlock x:Name="Status" VerticalAlignment="Center" Margin="12,0" FontSize="11" Foreground="{DynamicResource FgMuted}"
+                   Text="Starting…"/>
+      </Border>
+    </Grid>
+    <StackPanel Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top"
+                Height="40" WindowChrome.IsHitTestVisibleInChrome="True">
+      <Button Style="{StaticResource Caption}" Content="&#xE921;" Click="MinClick" ToolTip="Minimize"/>
+      <Button x:Name="MaxBtn" Style="{StaticResource Caption}" Content="&#xE922;" Click="MaxClick" ToolTip="Maximize"/>
+      <Button Style="{StaticResource CaptionClose}" Content="&#xE8BB;" Click="CloseClick" ToolTip="Close"/>
+    </StackPanel>
+
+  </Grid>
+</Window>

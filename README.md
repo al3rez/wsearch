@@ -10,10 +10,34 @@ journal**. The exe requests Administrator on launch so `\\.\C:` opens.
 
 ```
 cargo build --release
+dotnet build ui/WSearch.Ui.csproj -c Release
 .\target\release\wsearch.exe install --startup
-wsearch main.rs
+wsearch                          # Mica dual-pane browser
+wsearch main.rs                  # CLI
 wsearch 'ext:rs grep:apply_dir'
 ```
+
+## Native UI
+
+`wsearch` with no args opens a WPF browser in the same spirit as
+[OneCommander](https://www.onecommander.com/): Mica backdrop, dual panes,
+sidebar places, preview, and a Fluent search box over the wsearch daemon.
+
+| | |
+|---|---|
+| Search | Ctrl+F, type to filter; This PC or current folder |
+| Open | Enter / double-click |
+| Navigate | Alt+Left/Right, Alt+Up, sidebar |
+| Files | Del, F5 |
+| Context | Open, Show in Explorer, Copy path |
+| Classic | `wsearch win32` for the Common Controls listview |
+
+Search uses the same fuzzy/`ext:`/`mtime:` language as the CLI. Recents is
+`mtime:<30d`. Footer shows engine time in milliseconds.
+
+The UI is `ui/WSearch.Ui` (.NET 8 WPF). `install` copies it next to
+`wsearch.exe`. Without the WPF build, the Win32 browser still launches.
+
 
 ## Speed
 
@@ -71,8 +95,8 @@ JSON lines over `\\.\pipe\wsearch-ipc`, or `wsearch stdio`:
 
 Index files live in `%LOCALAPPDATA%\wsearch` (`WSEARCH_DIR` overrides).
 
-`wsearch install --startup` copies the binary to `%LOCALAPPDATA%\wsearch`
-and adds a HKCU Run key (still needs the UAC grant).
+`wsearch install --startup` copies the binary and WPF UI to
+`%LOCALAPPDATA%\wsearch` and adds a HKCU Run key (still needs the UAC grant).
 
 ## How it works
 

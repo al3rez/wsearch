@@ -3,3 +3,6 @@
 *.pdb
 .idea/
 .vscode/
+/ui/bin/
+/ui/obj/
+

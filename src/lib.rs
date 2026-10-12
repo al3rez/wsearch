@@ -9,6 +9,7 @@ pub mod nt;
 pub mod pathwin;
 pub mod query;
 pub mod server;
+pub mod ui;
 pub mod walk;
 mod winpriv;
 
