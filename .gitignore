@@ -6,3 +6,6 @@
 /ui/bin/
 /ui/obj/
 
+/dist
+/ui/term
+/demo/frame*.png

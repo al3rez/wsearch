@@ -1,17 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
   <defs>
-    <linearGradient id="bg" x1="40" y1="12" x2="216" y2="244" gradientUnits="userSpaceOnUse">
+    <linearGradient id="bg" x1="0" y1="0" x2="256" y2="256" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#60CDFF"/>
       <stop offset="0.45" stop-color="#0078D4"/>
       <stop offset="1" stop-color="#005A9E"/>
     </linearGradient>
   </defs>
-  <!-- Windows 11 app squircle -->
-  <rect x="16" y="16" width="224" height="224" rx="56" ry="56" fill="url(#bg)"/>
-  <!-- stacked files, search-in-disk -->
-  <rect x="64" y="70" width="54" height="68" rx="8" fill="#ffffff" opacity="0.22"/>
-  <rect x="76" y="82" width="54" height="68" rx="8" fill="#ffffff" opacity="0.38"/>
-  <!-- magnifier -->
-  <circle cx="126" cy="120" r="44" fill="none" stroke="#ffffff" stroke-width="16"/>
-  <path d="M158 154 L198 198" fill="none" stroke="#ffffff" stroke-width="16" stroke-linecap="round"/>
+  <rect x="0" y="0" width="256" height="256" rx="52" ry="52" fill="url(#bg)"/>
+  <circle cx="118" cy="112" r="58" fill="none" stroke="#ffffff" stroke-width="22"/>
+  <path d="M156 152 L214 214" fill="none" stroke="#ffffff" stroke-width="22" stroke-linecap="round"/>
 </svg>

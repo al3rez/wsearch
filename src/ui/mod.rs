@@ -22,14 +22,15 @@ use windows_sys::Win32::UI::Controls::{
 };
 use windows_sys::Win32::UI::HiDpi::SetProcessDpiAwarenessContext;
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{GetKeyState, SetFocus};
-use windows_sys::Win32::UI::Shell::{SHGetImageList, SHIL_LARGE, SHIL_SMALL};
+use windows_sys::Win32::UI::Shell::{ExtractIconW, SHGetImageList, SHIL_LARGE, SHIL_SMALL};
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     AppendMenuW, CreatePopupMenu, CreateWindowExW, DefWindowProcW, DispatchMessageW, GetClientRect, GetMessageW,
-    GetWindowLongPtrW, GetWindowTextLengthW, GetWindowTextW, KillTimer, LoadCursorW, MoveWindow, PostQuitMessage,
-    RegisterClassExW, SendMessageW, SetTimer, SetWindowLongPtrW, ShowWindow, TrackPopupMenu, TranslateMessage,
-    CS_HREDRAW, CS_VREDRAW, CW_USEDEFAULT, GWLP_USERDATA, HMENU, IDC_ARROW, MF_SEPARATOR, MF_STRING, MINMAXINFO, MSG,
-    SW_SHOW, TPM_RETURNCMD, WM_COMMAND, WM_CONTEXTMENU, WM_CREATE, WM_DESTROY, WM_GETMINMAXINFO, WM_NOTIFY, WM_SETFONT,
-    WM_SIZE, WM_TIMER, WNDCLASSEXW, WS_CHILD, WS_CLIPSIBLINGS, WS_EX_CLIENTEDGE, WS_OVERLAPPEDWINDOW, WS_VISIBLE,
+    GetWindowLongPtrW, GetWindowTextLengthW, GetWindowTextW, KillTimer, LoadCursorW, LoadIconW, MessageBoxW, MoveWindow,
+    PostQuitMessage, RegisterClassExW, SendMessageW, SetTimer, SetWindowLongPtrW, ShowWindow, TrackPopupMenu,
+    TranslateMessage, CS_HREDRAW, CS_VREDRAW, CW_USEDEFAULT, GWLP_USERDATA, HMENU, IDC_ARROW, IDI_APPLICATION, ICON_BIG,
+    ICON_SMALL, MF_SEPARATOR, MF_STRING, MINMAXINFO, MSG, SW_SHOW, TPM_RETURNCMD, WM_COMMAND, WM_CONTEXTMENU, WM_CREATE,
+    WM_DESTROY, WM_GETMINMAXINFO, WM_NOTIFY, WM_SETFONT, WM_SETICON, WM_SIZE, WM_TIMER, WNDCLASSEXW, WS_CHILD,
+    WS_CLIPSIBLINGS, WS_EX_CLIENTEDGE, WS_OVERLAPPEDWINDOW, WS_VISIBLE,
 };
 
 const WM_APP: u32 = 0x8000;
@@ -175,9 +176,8 @@ struct App {
 
 pub fn run() {
     if let Some(ui) = find_wpf() {
-        match std::process::Command::new(&ui).status() {
-            Ok(_) => return,
-            Err(_) => {}
+        if std::process::Command::new(&ui).status().map(|s| s.success()).unwrap_or(false) {
+            return;
         }
     }
     run_win32();
@@ -188,22 +188,28 @@ fn find_wpf() -> Option<PathBuf> {
     if let Ok(exe) = std::env::current_exe() {
         if let Some(dir) = exe.parent() {
             cands.push(dir.join("WSearch.Ui.exe"));
+            cands.push(dir.join("../../../dist/wsearch-windows-x64/WSearch.Ui.exe"));
+            cands.push(dir.join("../../dist/wsearch-windows-x64/WSearch.Ui.exe"));
+            cands.push(dir.join("../dist/wsearch-windows-x64/WSearch.Ui.exe"));
             cands.push(dir.join("../../../ui/bin/Release/net8.0-windows/WSearch.Ui.exe"));
-            cands.push(dir.join("../../ui/bin/Release/net8.0-windows/WSearch.Ui.exe"));
         }
     }
     cands.push(crate::default_dir().join("WSearch.Ui.exe"));
-    cands.into_iter().find(|p| p.is_file())
+    cands.into_iter().find(|p| p.is_file() && p.metadata().map(|m| m.len() > 1_000_000).unwrap_or(false))
 }
 
 pub fn copy_ui_next_to(dest_dir: &Path) {
     let Some(src) = find_wpf() else { return };
-    let Some(dir) = src.parent() else { return };
-    for name in ["WSearch.Ui.exe", "WSearch.Ui.dll", "WSearch.Ui.runtimeconfig.json", "WSearch.Ui.deps.json"] {
-        let s = dir.join(name);
-        if s.is_file() {
-            let _ = std::fs::copy(&s, dest_dir.join(name));
+    let _ = std::fs::copy(&src, dest_dir.join("WSearch.Ui.exe"));
+    if let Some(dir) = src.parent() {
+        let ico = dir.join("wsearch.ico");
+        if ico.is_file() {
+            let _ = std::fs::copy(&ico, dest_dir.join("wsearch.ico"));
         }
+    }
+    let repo_ico = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui/Assets/wsearch.ico");
+    if repo_ico.is_file() {
+        let _ = std::fs::copy(&repo_ico, dest_dir.join("wsearch.ico"));
     }
 }
 
@@ -216,6 +222,7 @@ pub fn run_win32() {
 
         let class: Vec<u16> = "WSearchBrowser\0".encode_utf16().collect();
         let inst = GetModuleHandleW(std::ptr::null());
+        let icon = app_icon(inst);
         let wc = WNDCLASSEXW {
             cbSize: std::mem::size_of::<WNDCLASSEXW>() as u32,
             style: CS_HREDRAW | CS_VREDRAW,
@@ -223,15 +230,15 @@ pub fn run_win32() {
             cbClsExtra: 0,
             cbWndExtra: 0,
             hInstance: inst,
-            hIcon: std::ptr::null_mut(),
+            hIcon: icon,
             hCursor: LoadCursorW(std::ptr::null_mut(), IDC_ARROW),
             hbrBackground: GetSysColorBrush(COLOR_BTNFACE),
             lpszMenuName: std::ptr::null(),
             lpszClassName: class.as_ptr(),
-            hIconSm: std::ptr::null_mut(),
+            hIconSm: icon,
         };
         RegisterClassExW(&wc);
-        let title: Vec<u16> = "WSearch\0".encode_utf16().collect();
+        let title: Vec<u16> = "Wsearch\0".encode_utf16().collect();
         let hwnd = CreateWindowExW(
             0,
             class.as_ptr(),
@@ -246,6 +253,12 @@ pub fn run_win32() {
             inst,
             std::ptr::null(),
         );
+        if hwnd.is_null() {
+            MessageBoxW(std::ptr::null_mut(), w("CreateWindow failed").as_ptr(), w("Wsearch").as_ptr(), 0);
+            return;
+        }
+        SendMessageW(hwnd, WM_SETICON, ICON_BIG as usize, icon as isize);
+        SendMessageW(hwnd, WM_SETICON, ICON_SMALL as usize, icon as isize);
         ShowWindow(hwnd, SW_SHOW);
         UpdateWindow(hwnd);
         let mut msg = std::mem::zeroed::<MSG>();
@@ -470,6 +483,20 @@ fn create_app(hwnd: HWND) -> App {
 
 fn w(s: &str) -> Vec<u16> {
     s.encode_utf16().chain(std::iter::once(0)).collect()
+}
+
+fn app_icon(inst: windows_sys::Win32::Foundation::HINSTANCE) -> windows_sys::Win32::UI::WindowsAndMessaging::HICON {
+    let dll = w(r"C:\Windows\System32\imageres.dll");
+    let h = unsafe { ExtractIconW(inst, dll.as_ptr(), 8) };
+    if !h.is_null() && h != (-1isize as _) {
+        return h;
+    }
+    let dll = w(r"C:\Windows\System32\shell32.dll");
+    let h = unsafe { ExtractIconW(inst, dll.as_ptr(), 23) };
+    if !h.is_null() && h != (-1isize as _) {
+        return h;
+    }
+    unsafe { LoadIconW(std::ptr::null_mut(), IDI_APPLICATION) }
 }
 
 fn insert_col(list: HWND, i: i32, title: &str, width: i32) {

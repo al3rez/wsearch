@@ -9,6 +9,7 @@
     <RootNamespace>WSearch.Ui</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\wsearch.ico</ApplicationIcon>
+    <DefaultItemExcludes>$(DefaultItemExcludes);term/**</DefaultItemExcludes>
   </PropertyGroup>
   <ItemGroup>
     <Resource Include="Assets\wsearch.ico" />

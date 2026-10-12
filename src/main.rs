@@ -1,9 +1,10 @@
+#![windows_subsystem = "windows"]
+
 use wsearch::{index, live, query};
 
 use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
 use std::time::Instant;
-
 const USAGE: &str = "usage:
   wsearch                        OneCommander-style browser (Mica, dual-pane)
   wsearch <query...> [--json]    search (starts the daemon if needed)
@@ -36,8 +37,10 @@ fn parse_root(args: &[String]) -> Option<PathBuf> {
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    if !matches!(args.first().map(String::as_str), None | Some("gui" | "win32")) {
+        attach_console();
+    }
     match args.first().map(String::as_str) {
-        Some("-h" | "--help") => eprintln!("{USAGE}"),
         None | Some("gui") => wsearch::ui::run(),
         Some("win32") => wsearch::ui::run_win32(),
         Some("serve") => wsearch::serve(data_dir(), home(), parse_root(&args)),
@@ -134,23 +137,99 @@ fn build_index(root: Option<PathBuf>) {
 }
 
 fn install(startup: bool) {
-    let dest = data_dir().join("wsearch.exe");
-    let _ = std::fs::remove_file(&dest);
-    std::fs::copy(std::env::current_exe().unwrap(), &dest).unwrap_or_else(|e| die(&format!("copy: {e}")));
-    if let Some(dir) = dest.parent() {
-        wsearch::ui::copy_ui_next_to(dir);
+    let dir = data_dir();
+    let src = std::env::current_exe().unwrap();
+    let daemon = dir.join("wsearch.exe");
+    let _ = std::fs::copy(&src, &daemon);
+    wsearch::ui::copy_ui_next_to(&dir);
+    let gui = dir.join("WSearch.Ui.exe");
+    let target = if gui.is_file() { gui } else { daemon.clone() };
+    let ico = dir.join("wsearch.ico");
+    if let Ok(bin) = std::env::var("LOCALAPPDATA") {
+        let p = PathBuf::from(bin).join("bin");
+        let _ = std::fs::create_dir_all(&p);
+        let _ = std::fs::copy(&daemon, p.join("wsearch.exe"));
     }
-    if !startup {
-        println!("installed {}; daemon starts on first search", dest.display());
-        return;
+    set_app_path(Some(&target));
+    let programs = PathBuf::from(std::env::var("APPDATA").unwrap_or_default()).join(r"Microsoft\Windows\Start Menu\Programs");
+    let _ = std::fs::create_dir_all(&programs);
+    create_shortcut(&programs.join("Wsearch.lnk"), &target, ico.exists().then_some(ico.as_path()));
+    if let Ok(home) = std::env::var("USERPROFILE") {
+        create_shortcut(&PathBuf::from(home).join(r"Desktop\Wsearch.lnk"), &target, ico.exists().then_some(ico.as_path()));
     }
-    set_run_key(Some(&dest));
-    println!("installed {} (HKCU Run wsearch)", dest.display());
+    if startup {
+        set_run_key(Some(&daemon));
+    }
+    println!("installed {} - Start/Desktop: Wsearch", target.display());
+}
+
+fn create_shortcut(lnk: &std::path::Path, target: &std::path::Path, ico: Option<&std::path::Path>) {
+    let q = |s: &str| format!("'{}'", s.replace('\'', "''"));
+    let icon = ico
+        .map(|p| format!("{};$s.IconLocation={}", "", q(&format!("{},0", p.display()))))
+        .unwrap_or_else(|| ";$s.IconLocation='C:\\Windows\\System32\\imageres.dll,8'".into());
+    let ps = format!(
+        "$s=(New-Object -ComObject WScript.Shell).CreateShortcut({});$s.TargetPath={};$s.WorkingDirectory={};$s.Description='Wsearch'{};$s.Save()",
+        q(&lnk.to_string_lossy()),
+        q(&target.to_string_lossy()),
+        q(&target.parent().unwrap_or(target).to_string_lossy()),
+        if let Some(p) = ico {
+            format!(";$s.IconLocation={}", q(&format!("{},0", p.display())))
+        } else {
+            ";$s.IconLocation='C:\\Windows\\System32\\imageres.dll,8'".into()
+        },
+    );
+    let _ = icon;
+    let _ = std::process::Command::new("powershell")
+        .args(["-NoProfile", "-NonInteractive", "-Command", &ps])
+        .status();
+}
+
+fn set_app_path(exe: Option<&std::path::Path>) {
+    use windows_sys::Win32::System::Registry::{
+        HKEY_CURRENT_USER, KEY_SET_VALUE, REG_SZ, RegCloseKey, RegCreateKeyExW, RegDeleteTreeW, RegSetValueExW,
+    };
+    let sub = wsearch::pathwin::to_wide(b"Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\Wsearch.exe");
+    let mut hk = std::ptr::null_mut();
+    match exe {
+        None => {
+            let _ = unsafe { RegDeleteTreeW(HKEY_CURRENT_USER, sub.as_ptr()) };
+            return;
+        }
+        Some(p) => {
+            let ok = unsafe {
+                RegCreateKeyExW(HKEY_CURRENT_USER, sub.as_ptr(), 0, std::ptr::null(), 0, KEY_SET_VALUE, std::ptr::null(), &mut hk, std::ptr::null_mut())
+            };
+            if ok != 0 {
+                return;
+            }
+            let path = p.to_string_lossy();
+            let w = wsearch::pathwin::to_wide(path.as_bytes());
+            unsafe {
+                RegSetValueExW(hk, std::ptr::null(), 0, REG_SZ, w.as_ptr() as *const u8, (w.len() * 2) as u32);
+            }
+            if let Some(dir) = p.parent() {
+                let d = wsearch::pathwin::to_wide(dir.to_string_lossy().as_bytes());
+                let name = wsearch::pathwin::to_wide(b"Path");
+                unsafe {
+                    RegSetValueExW(hk, name.as_ptr(), 0, REG_SZ, d.as_ptr() as *const u8, (d.len() * 2) as u32);
+                }
+            }
+            unsafe { RegCloseKey(hk) };
+        }
+    }
 }
 
 fn uninstall() {
     set_run_key(None);
-    println!("removed logon entry; index kept in {}", data_dir().display());
+    set_app_path(None);
+    if let Ok(appdata) = std::env::var("APPDATA") {
+        let _ = std::fs::remove_file(PathBuf::from(appdata).join(r"Microsoft\Windows\Start Menu\Programs\Wsearch.lnk"));
+    }
+    if let Ok(home) = std::env::var("USERPROFILE") {
+        let _ = std::fs::remove_file(PathBuf::from(home).join(r"Desktop\Wsearch.lnk"));
+    }
+    println!("removed Start Menu, Desktop, and logon entry; index kept in {}", data_dir().display());
 }
 
 fn set_run_key(exe: Option<&std::path::Path>) {
@@ -179,6 +258,11 @@ fn set_run_key(exe: Option<&std::path::Path>) {
         },
     }
     unsafe { RegCloseKey(hk) };
+}
+fn attach_console() {
+    unsafe {
+        windows_sys::Win32::System::Console::AttachConsole(0xFFFFFFFF);
+    }
 }
 
 fn die(msg: &str) -> ! {

@@ -8,20 +8,35 @@ NTFS is crawled from **`$MFT`** (sequential I/O). macOS has no equivalent:
 fsearch tree-walks with `getattrlistbulk`. Changes stream from the **USN
 journal**. The exe requests Administrator on launch so `\\.\C:` opens.
 
+![WSearch dual-pane search](demo/ui.png)
+
+[Demo (mp4)](demo/demo.mp4) — Win11 dark theme, Places sidebar, dual panes,
+preview. Search `Bloodborne.exe` over 3.6M files in **1.18 ms**.
+
+![Demo](demo/demo.mp4)
+
+
 ```
 cargo build --release
 dotnet build ui/WSearch.Ui.csproj -c Release
 .\target\release\wsearch.exe install --startup
-wsearch                          # Mica dual-pane browser
+wsearch                          # WPF dual-pane browser
 wsearch main.rs                  # CLI
 wsearch 'ext:rs grep:apply_dir'
 ```
 
 ## Native UI
 
-`wsearch` with no args opens a WPF browser in the same spirit as
-[OneCommander](https://www.onecommander.com/): Mica backdrop, dual panes,
-sidebar places, preview, and a Fluent search box over the wsearch daemon.
+`wsearch` with no args opens a WPF browser (WinExe, no console flash) in the
+same spirit as [OneCommander](https://www.onecommander.com/):
+
+- Win11 **dark / light** follows the system theme
+- Places sidebar (This PC, Desktop, Documents, Recycle Bin, drives)
+- Dual panes + preview, custom caption chrome
+- Full-bleed Fluent icon (taskbar plate, not a padded squircle)
+- Search box uses the same fuzzy / `ext:` / `mtime:` language as the CLI
+- Footer shows hit count and engine time in milliseconds
+- Shell context menu; Delete goes to Recycle Bin
 
 | | |
 |---|---|
@@ -32,11 +47,9 @@ sidebar places, preview, and a Fluent search box over the wsearch daemon.
 | Context | Open, Show in Explorer, Copy path |
 | Classic | `wsearch win32` for the Common Controls listview |
 
-Search uses the same fuzzy/`ext:`/`mtime:` language as the CLI. Recents is
-`mtime:<30d`. Footer shows engine time in milliseconds.
-
-The UI is `ui/WSearch.Ui` (.NET 8 WPF). `install` copies it next to
-`wsearch.exe`. Without the WPF build, the Win32 browser still launches.
+Recents is `mtime:<30d`. The UI is `ui/WSearch.Ui` (.NET 8 WPF). `install`
+copies it next to `wsearch.exe` and pins Start / Desktop shortcuts.
+Without the WPF build, the Win32 browser still launches.
 
 
 ## Speed
